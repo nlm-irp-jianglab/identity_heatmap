@@ -469,7 +469,7 @@ const Heatmap = () => {
               <h5>Rename Sequences</h5>
               {sequenceOrder.map((label) => (
                 <div key={label} className="mb-1 d-flex align-items-center">
-                  <label className="me-1">{label} →</label>
+                  <label className="me-1">{label}→</label>
                   <input
                     type="text"
                     className="form-control"
