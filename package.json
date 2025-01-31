@@ -1,6 +1,7 @@
 {
-  "name": "heatmap-app",
+  "name": "heatmap",
   "version": "1.0.0",
+  "private": true,
   "description": "A React application to visualize pairwise identity heatmaps using D3.js",
   "main": "index.js",
   "scripts": {
@@ -12,15 +13,13 @@
     "deploy": "gh-pages -d build"
   },
   "dependencies": {
-    "bootstrap": "^5.3.3",
-    "d3": "^7.9.0",
-    "react": "^18.2.0",
-    "react-beautiful-dnd": "^13.1.1",
-    "react-color": "^2.19.3",
-    "react-csv-reader": "^4.0.0",
-    "react-dom": "^18.2.0",
-    "react-draggable": "^4.4.6",
-    "react-scripts": "^3.0.1"
+    "bootstrap": "^5.1.3",
+    "d3": "^7.0.0",
+    "react": "^17.0.2",
+    "react-csv-reader": "^3.0.3",
+    "react-dom": "^17.0.2",
+    "react-draggable": "^4.4.3",
+    "react-scripts": "4.0.3"
   },
   "browserslist": {
     "production": [
