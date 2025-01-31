@@ -18,11 +18,7 @@ const Heatmap = () => {
 
   const width = 500;
   const height = 500;
-  const margin = { top: 50, right: 80, bottom: 50, left: 120 };
-
-  // Define columnNames and columnWidth
-  const columnNames = ["Column1", "Column2", "Column3"]; // Example column names
-  const columnWidth = 100; // Example column width
+  const margin = { top: 50, right: 80, bottom: 120, left: 120 }; // Increased bottom margin for column labels
 
   useEffect(() => {
     setFilteredData([...matrixData]);
@@ -130,46 +126,7 @@ const Heatmap = () => {
       .style("font-family", fontFamily)
       .text((d) => d);
 
-    // ✅ Draw Legend
-    d3.select("#legend-container").selectAll("*").remove();
-    const legendSvg = d3.select("#legend-container")
-      .append("svg")
-      .attr("width", 80)
-      .attr("height", 250);
-
-    const legendScale = d3.scaleLinear()
-      .domain([domainStart, domainEnd])
-      .range([200, 0]);
-
-    const legendAxis = d3.axisRight(legendScale).ticks(5);
-
-    legendSvg.append("g")
-      .attr("transform", "translate(50,20)")
-      .call(legendAxis);
-
-    legendSvg.selectAll("rect")
-      .data(d3.range(domainStart, domainEnd, (domainEnd - domainStart) / 100))
-      .enter()
-      .append("rect")
-      .attr("x", 30)
-      .attr("y", (d) => legendScale(d) + 20)
-      .attr("width", 20)
-      .attr("height", 2)
-      .style("fill", (d) => colorScale(d));
-
-    // Move column names under the plot and rotate text
-    legendSvg.selectAll(".column-name")
-      .data(columnNames)
-      .enter()
-      .append("text")
-      .attr("class", "column-name")
-      .attr("x", (d, i) => i * columnWidth + columnWidth / 2)
-      .attr("y", height + margin.bottom - 10) // Adjust y position to be under the plot
-      .attr("transform", "rotate(45)")
-      .style("text-anchor", "start")
-      .text((d) => d);
-
-    }, [filteredData, renamed, showUpper, getColorScale, fontSize, labelFontSize, fontFamily, domainStart, domainEnd, margin.bottom, margin.left, margin.right, margin.top, columnNames]);
+  }, [filteredData, renamed, showUpper, getColorScale, fontSize, labelFontSize, fontFamily]);
 
   useEffect(() => {
     drawHeatmap();
@@ -180,59 +137,12 @@ const Heatmap = () => {
       <h2>Pairwise Identity Heatmap</h2>
       <CSVReader onFileLoaded={handleFileLoad} />
 
-      {/* ✅ User Input for Customization */}
-      <div>
-        <label>Domain Start:
-          <input type="number" value={domainStart} onChange={(e) => setDomainStart(Number(e.target.value))} />
-        </label>
-        <label>Domain End:
-          <input type="number" value={domainEnd} onChange={(e) => setDomainEnd(Number(e.target.value))} />
-        </label>
-        <label>Color 1:
-          <input type="color" value={color1} onChange={(e) => setColor1(e.target.value)} />
-        </label>
-        <label>Color 2:
-          <input type="color" value={color2} onChange={(e) => setColor2(e.target.value)} />
-        </label>
-
-        <label>Font Size:
-          <input type="number" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} />
-        </label>
-        <label>Label Font Size:
-          <input type="number" value={labelFontSize} onChange={(e) => setLabelFontSize(Number(e.target.value))} />
-        </label>
-        <label>Font Family:
-          <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)}>
-            <option value="Arial">Arial</option>
-            <option value="Verdana">Verdana</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Courier New">Courier New</option>
-          </select>
-        </label>
-      </div>
-
-      {/* ✅ Row & Column Renaming */}
-      <div>
-        <h3>Rename Rows & Columns</h3>
-        {filteredData.length > 0 && filteredData[0].slice(1).map((seq, i) => (
-          <div key={i}>
-            <label>{seq} → </label>
-            <input
-              type="text"
-              value={renamed[seq] || seq}
-              onChange={(e) => renameSequence(seq, e.target.value)}
-            />
-          </div>
-        ))}
-      </div>
-
       <button onClick={() => setShowUpper(!showUpper)}>Toggle Upper/Lower Triangular View</button>
       <div id="heatmap"></div>
 
       <Draggable>
         <div id="legend-container" style={{ position: "absolute", top: "10px", right: "10px", background: "white", padding: "5px", borderRadius: "5px" }}>
           <h4>Legend</h4>
-          <svg id="legend-svg"></svg> {/* Added missing SVG element for the legend */}
         </div>
       </Draggable>
     </div>
