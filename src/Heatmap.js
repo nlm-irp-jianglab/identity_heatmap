@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import CSVReader from 'react-csv-reader';
-import * as d3 from 'd3';
-import Draggable from 'react-draggable';
+import React, { useState, useEffect, useCallback } from "react";
+import "bootstrap/dist/css/bootstrap.css";
+import CSVReader from "react-csv-reader";
+import * as d3 from "d3";
+import Draggable from "react-draggable";
 
 const Heatmap = () => {
   const [matrixData, setMatrixData] = useState([]);
@@ -10,30 +11,30 @@ const Heatmap = () => {
 
   const [domainStart, setDomainStart] = useState(0);
   const [domainEnd, setDomainEnd] = useState(100);
-  const [color1, setColor1] = useState("#08306b"); // Dark Blue
-  const [color2, setColor2] = useState("#ffffff"); // White
+  const [color1, setColor1] = useState("#08306b");
+  const [color2, setColor2] = useState("#ffffff");
 
   const [fontSize, setFontSize] = useState(12);
   const [labelFontSize, setLabelFontSize] = useState(12);
   const [fontFamily, setFontFamily] = useState("Arial");
 
-  const width = 500;
-  const height = 500;
-  const margin = { top: 50, right: 80, bottom: 50, left: 120 };
+  // Heatmap dimensions
+  const width = 360;
+  const height = 360;
+  const margin = { top: 50, right: 80, bottom: 120, left: 120 };
 
-  // =============== CSV Data Loading ===============
+  // === CSV Loading ===
   const handleFileLoad = (data) => {
-    // Filter out empty rows
     const nonEmpty = data.filter((row) => row.some((cell) => cell !== ""));
     setMatrixData(nonEmpty);
   };
 
-  // =============== Name Renaming Logic ===============
+  // === Rename Logic ===
   const renameSequence = (original, newName) => {
     setRenamed((prev) => ({ ...prev, [original]: newName }));
   };
 
-  // =============== Color Scale and Text Color ===============
+  // === Color Helpers ===
   const getColorScale = useCallback(() => {
     return d3
       .scaleLinear()
@@ -48,36 +49,31 @@ const Heatmap = () => {
     return luminance > 150 ? "black" : "white";
   };
 
-  // =============== Main Heatmap Drawing ===============
+  // === Draw Heatmap ===
   const drawHeatmap = useCallback(() => {
-    // Clear previous render
     d3.select("#heatmap").selectAll("*").remove();
     d3.select("#legend-svg").selectAll("*").remove();
 
     if (!matrixData.length || matrixData.length < 2) return;
 
-    // First row has the sequence IDs (excluding the first cell)
     const labels = matrixData[0].slice(1).map((seq) => renamed[seq] || seq);
     const values = matrixData.slice(1).map((row) => row.slice(1).map(Number));
 
-    // Create the main SVG for the heatmap
+    // Main SVG
     const svg = d3
       .select("#heatmap")
       .append("svg")
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom);
 
-    // 'g' that actually holds the heatmap
     const g = svg
       .append("g")
       .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    // Define scales
     const x = d3.scaleBand().range([0, width]).domain(labels).padding(0.05);
     const y = d3.scaleBand().range([0, height]).domain(labels).padding(0.05);
     const colorScale = getColorScale();
 
-    // Flatten values to build cell data
     const cellsData = values.flatMap((row, i) =>
       row.map((val, j) => ({
         xLabel: labels[j],
@@ -88,7 +84,7 @@ const Heatmap = () => {
       }))
     );
 
-    // Filter for upper or lower triangle
+    // Filter upper/lower triangle
     const filteredCells = cellsData.filter((d) =>
       showUpper ? d.i <= d.j : d.i >= d.j
     );
@@ -105,7 +101,7 @@ const Heatmap = () => {
       .style("fill", (d) => colorScale(d.value))
       .style("stroke", "#fff");
 
-    // Text labels
+    // Text
     g.selectAll(".cell-text")
       .data(filteredCells)
       .enter()
@@ -147,8 +143,11 @@ const Heatmap = () => {
       .attr("font-family", fontFamily)
       .text((d) => d);
 
-    // =============== Legend (Drawn into #legend-svg) ===============
-    const legendSvg = d3.select("#legend-svg").attr("width", 80).attr("height", 250);
+    // =========== Legend ===========
+    const legendSvg = d3
+      .select("#legend-svg")
+      .attr("width", 80)
+      .attr("height", 250);
 
     const legendScale = d3
       .scaleLinear()
@@ -157,7 +156,10 @@ const Heatmap = () => {
 
     const legendAxis = d3.axisRight(legendScale).ticks(5);
 
-    legendSvg.append("g").attr("transform", "translate(50,20)").call(legendAxis);
+    legendSvg
+      .append("g")
+      .attr("transform", "translate(50,20)")
+      .call(legendAxis);
 
     legendSvg
       .selectAll("rect")
@@ -169,59 +171,43 @@ const Heatmap = () => {
       .attr("width", 20)
       .attr("height", 2)
       .style("fill", (d) => colorScale(d));
-  }, [
-    matrixData,
-    renamed,
-    showUpper,
-    domainStart,
-    domainEnd,
-    color1,
-    color2,
-    fontSize,
-    labelFontSize,
-    fontFamily,
-    getColorScale,
-  ]);
+  }, [matrixData, renamed, showUpper, domainStart, domainEnd, fontSize, labelFontSize, fontFamily, getColorScale, margin.bottom, margin.left, margin.right, margin.top]); 
 
   useEffect(() => {
     drawHeatmap();
   }, [drawHeatmap]);
 
-  // =============== Download Single SVG (Heatmap + Legend) ===============
+  // === Download Heatmap + Legend as single SVG ===
   const downloadSVG = () => {
-    // 1) Grab the heatmap SVG (the one we drew into #heatmap)
     const heatmapSvg = document.querySelector("#heatmap svg");
     if (!heatmapSvg) return;
 
-    // 2) Grab the legend SVG (the one in #legend-svg)
     const legendSvg = document.getElementById("legend-svg");
     if (!legendSvg) return;
 
-    // --- Clone both ---
     const heatmapClone = heatmapSvg.cloneNode(true);
     const legendClone = legendSvg.cloneNode(true);
 
-    // 3) Create a brand new <svg> to hold them both
-    // Adjust width/height as needed to fit your combined figure
-    const combinedWidth = 600;
-    const combinedHeight = 600;
-
-    const finalSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    // Combined container
+    const combinedWidth = 400;
+    const combinedHeight = 400;
+    const finalSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg"
+    );
     finalSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     finalSvg.setAttribute("width", combinedWidth);
     finalSvg.setAttribute("height", combinedHeight);
 
-    // 4) Place the heatmap at (0,0) in the new SVG
-    //    (Optionally adjust transforms, etc.)
+    // Append heatmap at (0,0)
     finalSvg.appendChild(heatmapClone);
 
-    // 5) Position the legend next to it
-    //    We'll set an x/y or a transform on the <svg> node
-    legendClone.setAttribute("x", "520"); 
-    legendClone.setAttribute("y", "10"); 
+    // Position legend on the right
+    legendClone.setAttribute("x", "520");
+    legendClone.setAttribute("y", "10");
     finalSvg.appendChild(legendClone);
 
-    // 6) Serialize and download
+    // Serialize & download
     const serializer = new XMLSerializer();
     const source = serializer.serializeToString(finalSvg);
 
@@ -236,113 +222,140 @@ const Heatmap = () => {
     document.body.removeChild(downloadLink);
   };
 
-  // =============== Render JSX ===============
   return (
-    <div>
-      <h2>Pairwise Identity Heatmap</h2>
-      <CSVReader onFileLoaded={handleFileLoad} />
+    <div className="container mt-4">
+      <h2 className="mb-3">Pairwise Identity Heatmap</h2>
 
-      {/* Controls */}
-      <div style={{ margin: "1em 0" }}>
-        <label style={{ marginRight: "1em" }}>
-          Domain Start:
-          <input
-            type="number"
-            value={domainStart}
-            onChange={(e) => setDomainStart(Number(e.target.value))}
-          />
-        </label>
-
-        <label style={{ marginRight: "1em" }}>
-          Domain End:
-          <input
-            type="number"
-            value={domainEnd}
-            onChange={(e) => setDomainEnd(Number(e.target.value))}
-          />
-        </label>
-
-        <label style={{ marginRight: "1em" }}>
-          Color 1:
-          <input
-            type="color"
-            value={color1}
-            onChange={(e) => setColor1(e.target.value)}
-          />
-        </label>
-
-        <label style={{ marginRight: "1em" }}>
-          Color 2:
-          <input
-            type="color"
-            value={color2}
-            onChange={(e) => setColor2(e.target.value)}
-          />
-        </label>
-
-        <label style={{ marginRight: "1em" }}>
-          Font Size:
-          <input
-            type="number"
-            value={fontSize}
-            onChange={(e) => setFontSize(Number(e.target.value))}
-          />
-        </label>
-
-        <label style={{ marginRight: "1em" }}>
-          Label Font Size:
-          <input
-            type="number"
-            value={labelFontSize}
-            onChange={(e) => setLabelFontSize(Number(e.target.value))}
-          />
-        </label>
-
-        <label style={{ marginRight: "1em" }}>
-          Font Family:
-          <select
-            value={fontFamily}
-            onChange={(e) => setFontFamily(e.target.value)}
-          >
-            <option value="Arial">Arial</option>
-            <option value="Verdana">Verdana</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Courier New">Courier New</option>
-          </select>
-        </label>
-      </div>
-
-      <button onClick={downloadSVG}>Download Combined SVG</button>
-
-      {/* Rename Rows & Columns */}
-      {matrixData.length > 0 && (
-        <div style={{ margin: "1em 0" }}>
-          <h3>Rename Rows & Columns</h3>
-          {matrixData[0].slice(1).map((seq, i) => (
-            <div key={i} style={{ marginBottom: "0.5em" }}>
-              <label>{seq} → </label>
+      <div className="row">
+        {/* Left Column (Controls & Renaming) */}
+        <div className="col-md-4">
+          {/* Domain Start / End */}
+          <div className="row mb-2">
+            <div className="col">
+              <label className="form-label">Domain Start</label>
               <input
-                type="text"
-                value={renamed[seq] || seq}
-                onChange={(e) => renameSequence(seq, e.target.value)}
+                type="number"
+                className="form-control"
+                value={domainStart}
+                onChange={(e) => setDomainStart(Number(e.target.value))}
               />
             </div>
-          ))}
+            <div className="col">
+              <label className="form-label">Domain End</label>
+              <input
+                type="number"
+                className="form-control"
+                value={domainEnd}
+                onChange={(e) => setDomainEnd(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          <hr />
+
+          {/* Color 1 / Color 2 */}
+          <div className="row mb-2">
+            <div className="col d-flex align-items-center">
+              <label className="form-label me-2">Color Start</label>
+              <input
+                type="color"
+                className="form-control form-control-color"
+                value={color1}
+                onChange={(e) => setColor1(e.target.value)}
+              />
+            </div>
+
+            <div className="col d-flex align-items-center">
+              <label className="form-label me-2">Color End</label>
+              <input
+                type="color"
+                className="form-control form-control-color"
+                value={color2}
+                onChange={(e) => setColor2(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <hr />
+
+          {/* Font Size / Label Font Size / Font Family */}
+          <div className="row mb-3">
+            <div className="col">
+              <label className="form-label">Font Size</label>
+              <input
+                type="number"
+                className="form-control"
+                value={fontSize}
+                onChange={(e) => setFontSize(Number(e.target.value))}
+              />
+            </div>
+            <div className="col">
+              <label className="form-label">Label Size</label>
+              <input
+                type="number"
+                className="form-control"
+                value={labelFontSize}
+                onChange={(e) => setLabelFontSize(Number(e.target.value))}
+              />
+            </div>
+            <div className="col">
+              <label className="form-label">Font Family</label>
+              <select
+                className="form-select"
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value)}
+              >
+                <option value="Arial">Arial</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Courier New">Courier New</option>
+              </select>
+            </div>
+          </div>
+
+          <hr />
+
+          {/* Toggle & Download */}
+          <div className="row mb-3">
+            <div className="col d-flex">
+              <button
+                className="btn btn-secondary me-2"
+                onClick={() => setShowUpper(!showUpper)}
+              >
+                Toggle Upper/Lower Triangular
+              </button>
+              <button className="btn btn-primary" onClick={downloadSVG}>
+                Download SVG
+              </button>
+            </div>
+          </div>
+
+          <hr />
+
+          {/* Rename Rows & Columns */}
+          {matrixData.length > 0 && (
+            <div className="mb-3">
+              <h5>Rename Rows & Columns</h5>
+              {matrixData[0].slice(1).map((seq, i) => (
+                <div key={i} className="mb-1 d-flex align-items-center">
+                  <label className="me-1">{seq}→</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ maxWidth: "300px" }}
+                    value={renamed[seq] || seq}
+                    onChange={(e) => renameSequence(seq, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
 
-      <button onClick={() => setShowUpper(!showUpper)}>
-        Toggle Upper/Lower Triangular View
-      </button>
-
-      {/* Heatmap Container (drawn into #heatmap > svg via D3) */}
-      <div id="heatmap" />
-
-      {/* Draggable Legend + Download Button */}
-      <Draggable>
+        {/* Right Column (Upload & Heatmap) */}
         <div
+          className="col-md-8"
           style={{
-            position: "absolute",
             top: "10px",
             right: "10px",
             background: "white",
@@ -350,16 +363,39 @@ const Heatmap = () => {
             borderRadius: "5px",
             border: "1px solid #ccc",
           }}
-          id="legend-container"
         >
-          <h4>Legend</h4>
-          <svg id="legend-svg" />
+          {/* CSV Upload */}
+          <div className="mb-3">
+            <CSVReader onFileLoaded={handleFileLoad} />
+          </div>
+
+          {/* Heatmap */}
+          <div id="heatmap"></div>
         </div>
-      </Draggable>
+      </div>
+
+      {/* Show legend ONLY AFTER data is loaded */}
+      {matrixData.length > 0 && (
+        <Draggable>
+          <div
+            id="legend-container"
+            style={{
+              position: "absolute",
+              top: "10px",
+              right: "10px",
+              background: "white",
+              padding: "5px",
+              borderRadius: "5px",
+              border: "1px solid #ccc",
+            }}
+          >
+            <h5>Legend</h5>
+            <svg id="legend-svg"></svg>
+          </div>
+        </Draggable>
+      )}
     </div>
   );
 };
 
 export default Heatmap;
-
-
