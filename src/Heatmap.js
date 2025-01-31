@@ -36,10 +36,7 @@ const Heatmap = () => {
 
   // === Color Helpers ===
   const getColorScale = useCallback(() => {
-    return d3
-      .scaleLinear()
-      .domain([domainStart, domainEnd])
-      .range([color1, color2]);
+    return d3.scaleLinear().domain([domainStart, domainEnd]).range([color1, color2]);
   }, [domainStart, domainEnd, color1, color2]);
 
   const getTextColor = (bgColor) => {
@@ -74,6 +71,7 @@ const Heatmap = () => {
     const y = d3.scaleBand().range([0, height]).domain(labels).padding(0.05);
     const colorScale = getColorScale();
 
+    // Flatten matrix into cell data
     const cellsData = values.flatMap((row, i) =>
       row.map((val, j) => ({
         xLabel: labels[j],
@@ -101,7 +99,7 @@ const Heatmap = () => {
       .style("fill", (d) => colorScale(d.value))
       .style("stroke", "#fff");
 
-    // Text
+    // Text labels
     g.selectAll(".cell-text")
       .data(filteredCells)
       .enter()
@@ -122,10 +120,7 @@ const Heatmap = () => {
       .append("text")
       .attr("x", (d) => x(d) + x.bandwidth() / 2)
       .attr("y", height + 40)
-      .attr(
-        "transform",
-        (d) => `rotate(45, ${x(d) + x.bandwidth() / 2}, ${height + 40})`
-      )
+      .attr("transform", (d) => `rotate(45, ${x(d) + x.bandwidth() / 2}, ${height + 40})`)
       .attr("text-anchor", "middle")
       .attr("font-size", labelFontSize)
       .attr("font-family", fontFamily)
@@ -144,10 +139,7 @@ const Heatmap = () => {
       .text((d) => d);
 
     // =========== Legend ===========
-    const legendSvg = d3
-      .select("#legend-svg")
-      .attr("width", 80)
-      .attr("height", 250);
+    const legendSvg = d3.select("#legend-svg").attr("width", 80).attr("height", 250);
 
     const legendScale = d3
       .scaleLinear()
@@ -156,10 +148,7 @@ const Heatmap = () => {
 
     const legendAxis = d3.axisRight(legendScale).ticks(5);
 
-    legendSvg
-      .append("g")
-      .attr("transform", "translate(50,20)")
-      .call(legendAxis);
+    legendSvg.append("g").attr("transform", "translate(50,20)").call(legendAxis);
 
     legendSvg
       .selectAll("rect")
@@ -171,43 +160,73 @@ const Heatmap = () => {
       .attr("width", 20)
       .attr("height", 2)
       .style("fill", (d) => colorScale(d));
-  }, [matrixData, renamed, showUpper, domainStart, domainEnd, fontSize, labelFontSize, fontFamily, getColorScale, margin.bottom, margin.left, margin.right, margin.top]); 
+  }, [
+    matrixData,
+    renamed,
+    showUpper,
+    domainStart,
+    domainEnd,
+    fontSize,
+    labelFontSize,
+    fontFamily,
+    getColorScale,
+    height,
+    width,
+    margin
+  ]);
 
   useEffect(() => {
     drawHeatmap();
   }, [drawHeatmap]);
 
-  // === Download Heatmap + Legend as single SVG ===
+  // === Download Heatmap + Legend as single SVG *exactly as displayed* ===
   const downloadSVG = () => {
+    // 1) Grab the on-screen SVG elements
     const heatmapSvg = document.querySelector("#heatmap svg");
-    if (!heatmapSvg) return;
-
+    const legendContainer = document.getElementById("legend-container");
     const legendSvg = document.getElementById("legend-svg");
-    if (!legendSvg) return;
 
+    if (!heatmapSvg || !legendSvg || !legendContainer) return;
+
+    // 2) Clone both
     const heatmapClone = heatmapSvg.cloneNode(true);
     const legendClone = legendSvg.cloneNode(true);
 
-    // Combined container
-    const combinedWidth = 400;
-    const combinedHeight = 400;
-    const finalSvg = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "svg"
-    );
-    finalSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    finalSvg.setAttribute("width", combinedWidth);
-    finalSvg.setAttribute("height", combinedHeight);
+    // 3) Get their bounding boxes in the browser
+    //    This lets us calculate how far the legend was dragged relative to the heatmap
+    const heatmapRect = heatmapSvg.getBoundingClientRect();
+    const legendRect = legendContainer.getBoundingClientRect();
 
-    // Append heatmap at (0,0)
+    // Relative offsets
+    const offsetX = legendRect.left - heatmapRect.left;
+    const offsetY = legendRect.top - heatmapRect.top;
+
+    // We'll figure out how big the final <svg> must be to show both
+    // The heatmap might be, for example, 600x530, plus we must account for how far the legend is dragged
+    const finalWidth = Math.max(
+      heatmapRect.width,
+      offsetX + legendRect.width
+    );
+    const finalHeight = Math.max(
+      heatmapRect.height,
+      offsetY + legendRect.height
+    );
+
+    // 4) Create a brand new <svg> in memory
+    const finalSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    finalSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    finalSvg.setAttribute("width", Math.ceil(finalWidth));
+    finalSvg.setAttribute("height", Math.ceil(finalHeight));
+
+    // 5) Append the heatmap at (0,0)
     finalSvg.appendChild(heatmapClone);
 
-    // Position legend on the right
-    legendClone.setAttribute("x", "520");
-    legendClone.setAttribute("y", "10");
+    // 6) Put the legend in the same relative position it is on-screen
+    legendClone.setAttribute("x", offsetX);
+    legendClone.setAttribute("y", offsetY);
     finalSvg.appendChild(legendClone);
 
-    // Serialize & download
+    // 7) Serialize & Download
     const serializer = new XMLSerializer();
     const source = serializer.serializeToString(finalSvg);
 
